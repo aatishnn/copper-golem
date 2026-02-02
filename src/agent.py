@@ -18,8 +18,8 @@ async def llm_call(prompt: str) -> str:
     return response.choices[0].message.content
 
 async def chat(user_id: str, user_message: str) -> str:
-    user_memory = escape_markdown(memory.read(user_id))
-    user_reminders = escape_markdown(reminders.read(user_id))
+    user_memory = escape_markdown(memory.read(user_id), version=2)
+    user_reminders = escape_markdown(reminders.read(user_id), version=2)
 
     system = f"""You are a helpful personal assistant with memory. You remember details about the user and help them stay organized.
 

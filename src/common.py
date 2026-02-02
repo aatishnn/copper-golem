@@ -1,7 +1,11 @@
 import re
 from pathlib import Path
+from telegram.helpers import escape_markdown
 
 DEFAULT_DATA_DIR = Path(__file__).parent.parent / "data"
+
+# Re-export escape_markdown from telegram.helpers
+__all__ = ['escape_markdown', 'sanitize_user_id', 'Storage', 'storage']
 
 def sanitize_user_id(user_id: str) -> str:
     """Sanitize user_id to prevent path traversal. Allow only alphanumeric, dash, underscore."""
@@ -9,14 +13,6 @@ def sanitize_user_id(user_id: str) -> str:
     if not sanitized:
         raise ValueError("Invalid user_id")
     return sanitized
-
-def escape_markdown(content: str) -> str:
-    """Escape all markdown special characters."""
-    # Characters that have special meaning in markdown
-    special_chars = ['\\', '`', '*', '_', '{', '}', '[', ']', '(', ')', '#', '+', '-', '.', '!', '|', '~', '>']
-    for char in special_chars:
-        content = content.replace(char, '\\' + char)
-    return content
 
 class Storage:
     def __init__(self, data_dir: Path = None):

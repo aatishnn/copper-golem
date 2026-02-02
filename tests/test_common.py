@@ -2,7 +2,8 @@ import tempfile
 import shutil
 from pathlib import Path
 import pytest
-from src.common import Storage, sanitize_user_id, escape_markdown
+from src.common import Storage, sanitize_user_id
+from telegram.helpers import escape_markdown
 
 @pytest.fixture
 def storage():
@@ -55,18 +56,12 @@ def test_sanitize_user_id_empty_raises():
     with pytest.raises(ValueError):
         sanitize_user_id("///")
 
-def test_escape_markdown_special_chars():
-    assert escape_markdown("# header") == "\\# header"
-    assert escape_markdown("**bold**") == "\\*\\*bold\\*\\*"
-    assert escape_markdown("`code`") == "\\`code\\`"
-    assert escape_markdown("[link](url)") == "\\[link\\]\\(url\\)"
+def test_escape_markdown_v2_special_chars():
+    # Using telegram's escape_markdown with version=2
+    assert escape_markdown("*bold*", version=2) == "\\*bold\\*"
+    assert escape_markdown("`code`", version=2) == "\\`code\\`"
+    assert escape_markdown("[link](url)", version=2) == "\\[link\\]\\(url\\)"
 
-def test_escape_markdown_code_blocks():
-    content = "```python\ncode\n```"
-    escaped = escape_markdown(content)
-    assert "```" not in escaped
-    assert "\\`\\`\\`" in escaped
-
-def test_escape_markdown_preserves_alphanumeric():
+def test_escape_markdown_v2_preserves_alphanumeric():
     content = "User likes pizza and coffee 123"
-    assert escape_markdown(content) == content
+    assert escape_markdown(content, version=2) == content
