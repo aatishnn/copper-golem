@@ -28,7 +28,13 @@ async def chat(user_id: str, user_message: str) -> str:
 ## Active Reminders
 {user_reminders}
 
-Be conversational and helpful. If the user mentions something worth remembering (facts, preferences, plans), acknowledge it naturally. If they mention a task or reminder, confirm you'll track it."""
+## Instructions
+Be conversational and helpful. If the user mentions something worth remembering (facts, preferences, plans), acknowledge it naturally.
+
+For reminders:
+- If the user mentions a reminder WITHOUT a specific time, ask when they want to be reminded
+- If the user mentions a reminder WITH a specific time, confirm you'll remind them at that time
+- Do NOT confirm you'll track a reminder until you have a specific time"""
 
     response = await client.chat.completions.create(
         model=MODEL,

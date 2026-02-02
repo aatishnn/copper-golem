@@ -87,8 +87,10 @@ User message: {user_message}"""
             due_str = due_match.group(1).strip()
             if due_str.upper() != "NONE":
                 due = due_str
-        add(user_id, text, due, storage)
-        return {"text": text, "due": due}
+        # Only store reminders that have a due time
+        if due:
+            add(user_id, text, due, storage)
+            return {"text": text, "due": due}
     return None
 
 async def loop(callback: Callable[[str, dict], None], interval: int = 60, storage: Storage = None):
