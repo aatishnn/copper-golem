@@ -10,12 +10,12 @@ def sanitize_user_id(user_id: str) -> str:
         raise ValueError("Invalid user_id")
     return sanitized
 
-def sanitize_for_prompt(content: str) -> str:
-    """Sanitize content before injecting into prompts to prevent markdown/prompt injection."""
-    # Escape markdown headers that could break prompt structure
-    content = re.sub(r'^(#{1,6})\s', r'\\\1 ', content, flags=re.MULTILINE)
-    # Escape backticks that could break code blocks
-    content = content.replace('```', '\\`\\`\\`')
+def escape_markdown(content: str) -> str:
+    """Escape all markdown special characters."""
+    # Characters that have special meaning in markdown
+    special_chars = ['\\', '`', '*', '_', '{', '}', '[', ']', '(', ')', '#', '+', '-', '.', '!', '|', '~', '>']
+    for char in special_chars:
+        content = content.replace(char, '\\' + char)
     return content
 
 class Storage:
