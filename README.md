@@ -28,7 +28,17 @@ Edit `.env` and add your keys:
 ```
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+
+# Optional: Use a local LLM API instead of OpenRouter
+# LLM_BASE_URL=http://192.168.1.142:4000
 ```
+
+#### LLM Configuration
+
+By default, the app uses OpenRouter's API. You can override this with the `LLM_BASE_URL` environment variable:
+
+- **Production** (default): `https://openrouter.ai/api/v1` (OpenRouter)
+- **Local Development**: `http://192.168.1.142:4000` (LM Studio, Ollama, or similar local LLM server)
 
 ### 3. Run with Docker (recommended)
 

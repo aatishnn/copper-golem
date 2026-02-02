@@ -3,9 +3,13 @@ from openai import AsyncOpenAI
 from src.common import escape_markdown, config
 from src.skills import memory, reminders, intent
 
+base_url = os.environ.get(
+    "LLM_BASE_URL",
+    "https://openrouter.ai/api/v1"
+)
+
 client = AsyncOpenAI(
-    #base_url="https://openrouter.ai/api/v1",
-    base_url="http://192.168.1.142:4000",
+    base_url=base_url,
     api_key=os.environ.get("OPENROUTER_API_KEY"),
 )
 
