@@ -1,9 +1,7 @@
 import os
 from openai import AsyncOpenAI
 from src.common import escape_markdown, config
-from src.skills import memory, reminders
-
-ORGANIZE_TRIGGERS = ["organize my notes", "organize notes", "consolidate my notes", "consolidate notes"]
+from src.skills import memory, reminders, intent
 
 client = AsyncOpenAI(
     #base_url="https://openrouter.ai/api/v1",
@@ -25,12 +23,45 @@ async def llm_call(prompt: str, usage: str = "extraction") -> str:
     )
     return response.choices[0].message.content
 
-async def chat(user_id: str, user_message: str) -> str:
-    # Check for organization intent
-    if any(trigger in user_message.lower() for trigger in ORGANIZE_TRIGGERS):
-        from src.consolidate import consolidate_and_tree
-        return await consolidate_and_tree(user_id)
+async def handle_organize(user_id: str) -> str:
+    """Handle organize intent."""
+    from src.consolidate import consolidate_and_tree
+    return await consolidate_and_tree(user_id)
 
+async def handle_show_notes(user_id: str) -> str:
+    """Handle show_notes intent."""
+    from src.consolidate import get_wiki_tree
+    wiki_content = memory.read(user_id)
+    tree = get_wiki_tree(user_id)
+
+    if not wiki_content.strip():
+        return "You don't have any notes yet. Just chat with me and I'll remember important things!"
+
+    return f"📝 Your Notes:\n\n{tree}"
+
+async def handle_show_reminders(user_id: str) -> str:
+    """Handle show_reminders intent."""
+    reminder_content = reminders.read(user_id)
+
+    if not reminder_content.strip():
+        return "You don't have any reminders yet. Just say 'remind me to...' and I'll track it!"
+
+    return f"⏰ Your Reminders:\n\n{reminder_content}"
+
+async def chat(user_id: str, user_message: str) -> str:
+    # Detect intent using LLM
+    intent_call = lambda p: llm_call(p, "extraction")
+    detected_intent = await intent.detect(intent_call, user_message)
+
+    # Handle special intents
+    if detected_intent == "organize":
+        return await handle_organize(user_id)
+    elif detected_intent == "show_notes":
+        return await handle_show_notes(user_id)
+    elif detected_intent == "show_reminders":
+        return await handle_show_reminders(user_id)
+
+    # Default: chat
     user_memory = escape_markdown(memory.read(user_id), version=2)
     user_reminders = escape_markdown(reminders.read(user_id), version=2)
 
