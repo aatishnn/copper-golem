@@ -1,11 +1,22 @@
+import json
 import re
 from pathlib import Path
 from telegram.helpers import escape_markdown
 
 DEFAULT_DATA_DIR = Path(__file__).parent.parent / "data"
+CONFIG_FILE = Path(__file__).parent.parent / "config.json"
 
 # Re-export escape_markdown from telegram.helpers
-__all__ = ['escape_markdown', 'sanitize_user_id', 'Storage', 'storage']
+__all__ = ['escape_markdown', 'sanitize_user_id', 'Storage', 'storage', 'config']
+
+def load_config() -> dict:
+    """Load config from config.json."""
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE) as f:
+            return json.load(f)
+    return {"models": {}}
+
+config = load_config()
 
 def sanitize_user_id(user_id: str) -> str:
     """Sanitize user_id to prevent path traversal. Allow only alphanumeric, dash, underscore."""

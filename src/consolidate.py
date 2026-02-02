@@ -6,6 +6,10 @@ from src.agent import llm_call
 from src.skills import memory
 from src.common import storage
 
+async def consolidation_llm_call(prompt: str) -> str:
+    """LLM call using consolidation model."""
+    return await llm_call(prompt, "consolidation")
+
 async def get_wiki_plan(log_content: str, memory_content: str) -> dict:
     """Phase 1: Get organization plan from LLM."""
     prompt = f"""Analyze this conversation log and suggest how to organize it into an Obsidian wiki.
@@ -37,7 +41,7 @@ Rules:
 - Group related thoughts together
 - Common topics: work, family, health, hobbies, goals, ideas, etc."""
 
-    result = await llm_call(prompt)
+    result = await consolidation_llm_call(prompt)
 
     # Extract JSON from response (handle markdown code blocks)
     json_match = re.search(r'\{[\s\S]*\}', result)

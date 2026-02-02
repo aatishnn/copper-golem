@@ -1,17 +1,22 @@
 import os
 from openai import AsyncOpenAI
-from src.common import escape_markdown
+from src.common import escape_markdown, config
 from src.skills import memory, reminders
 
 client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.environ.get("OPENROUTER_API_KEY"),
 )
-MODEL = "google/gemini-2.0-flash-001"
 
-async def llm_call(prompt: str) -> str:
+def get_model(usage: str) -> str:
+    """Get model for a specific usage type from config."""
+    return config.get("models", {}).get(usage, "google/gemini-2.0-flash-001")
+
+async def llm_call(prompt: str, usage: str = "extraction") -> str:
+    """Generic LLM call with configurable model based on usage."""
+    model = get_model(usage)
     response = await client.chat.completions.create(
-        model=MODEL,
+        model=model,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=500,
     )
@@ -37,8 +42,9 @@ For reminders:
 - If the user mentions a reminder WITH a specific time, confirm you'll remind them at that time
 - Do NOT confirm you'll track a reminder until you have a specific time"""
 
+    model = get_model("chat")
     response = await client.chat.completions.create(
-        model=MODEL,
+        model=model,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user_message},
@@ -47,7 +53,9 @@ For reminders:
     )
     assistant_response = response.choices[0].message.content
 
-    await memory.extract_and_store(llm_call, user_id, user_message, assistant_response)
-    await reminders.extract_and_store(llm_call, user_id, user_message)
+    # Use extraction model for these
+    extraction_call = lambda p: llm_call(p, "extraction")
+    await memory.extract_and_store(extraction_call, user_id, user_message, assistant_response)
+    await reminders.extract_and_store(extraction_call, user_id, user_message)
 
     return assistant_response
