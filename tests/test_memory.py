@@ -63,31 +63,8 @@ def test_log_append_and_read(storage):
     assert "What's the weather?" in log
     assert "It's sunny!" in log
 
-def test_log_clear(storage):
+def test_wiki_dir_creates_directory(storage):
     from src.skills import memory
-    memory.append_log("user1", "test", "response", storage)
-    assert memory.read_log("user1", storage) != ""
-    memory.clear_log("user1", storage)
-    assert memory.read_log("user1", storage) == ""
-
-@pytest.mark.asyncio
-async def test_consolidate(storage):
-    from src.skills import memory
-
-    # Add some log entries
-    memory.append_log("user1", "I like pizza", "Noted!", storage)
-    memory.append_log("user1", "My name is Alice", "Nice to meet you Alice!", storage)
-
-    # Mock LLM returns organized memory
-    mock_llm = AsyncMock(return_value="## Preferences\n- Likes pizza\n\n## Personal\n- Name: Alice")
-    result = await memory.consolidate(mock_llm, "user1", storage)
-
-    # Memory should be updated
-    assert "Preferences" in result
-    assert "Alice" in result
-
-    # Log should be cleared
-    assert memory.read_log("user1", storage) == ""
-
-    # Memory file should have the consolidated content
-    assert "Preferences" in memory.read("user1", storage)
+    wiki_dir = memory.get_wiki_dir("user1", storage)
+    assert wiki_dir.exists()
+    assert wiki_dir.name == "wiki"
