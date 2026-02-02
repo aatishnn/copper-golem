@@ -3,8 +3,11 @@ from openai import AsyncOpenAI
 from src.common import escape_markdown, config
 from src.skills import memory, reminders
 
+ORGANIZE_TRIGGERS = ["organize my notes", "organize notes", "consolidate my notes", "consolidate notes"]
+
 client = AsyncOpenAI(
-    base_url="https://openrouter.ai/api/v1",
+    #base_url="https://openrouter.ai/api/v1",
+    base_url="http://192.168.1.142:4000",
     api_key=os.environ.get("OPENROUTER_API_KEY"),
 )
 
@@ -23,6 +26,11 @@ async def llm_call(prompt: str, usage: str = "extraction") -> str:
     return response.choices[0].message.content
 
 async def chat(user_id: str, user_message: str) -> str:
+    # Check for organization intent
+    if any(trigger in user_message.lower() for trigger in ORGANIZE_TRIGGERS):
+        from src.consolidate import consolidate_and_tree
+        return await consolidate_and_tree(user_id)
+
     user_memory = escape_markdown(memory.read(user_id), version=2)
     user_reminders = escape_markdown(reminders.read(user_id), version=2)
 

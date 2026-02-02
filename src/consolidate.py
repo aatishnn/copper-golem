@@ -99,6 +99,35 @@ async def consolidate_user(user_id: str):
 
     return created_files
 
+def get_wiki_tree(user_id: str) -> str:
+    """Generate ASCII tree of wiki directory."""
+    wiki_dir = memory.get_wiki_dir(user_id)
+    files = sorted(wiki_dir.glob("*.md"))
+
+    if not files:
+        return "📁 wiki/\n└── (empty)"
+
+    lines = ["📁 wiki/"]
+    for i, f in enumerate(files):
+        # Count notes in file
+        content = f.read_text()
+        note_count = content.count("- ")
+
+        prefix = "└── " if i == len(files) - 1 else "├── "
+        lines.append(f"{prefix}{f.name} ({note_count} notes)")
+
+    return "\n".join(lines)
+
+async def consolidate_and_tree(user_id: str) -> str:
+    """Consolidate and return ASCII tree."""
+    files = await consolidate_user(user_id)
+
+    if files is None:
+        return "No notes to organize yet."
+
+    tree = get_wiki_tree(user_id)
+    return f"✅ Notes organized!\n\n{tree}"
+
 async def main():
     user_ids = storage.get_all_user_ids()
     if not user_ids:
