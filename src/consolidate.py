@@ -1,10 +1,8 @@
-"""Consolidate conversation logs into an Obsidian wiki for all users."""
-import asyncio
+"""Consolidate conversation logs into an Obsidian wiki."""
 import json
 import re
 from src.agent import llm_call
 from src.skills import memory
-from src.common import storage
 
 async def consolidation_llm_call(prompt: str) -> str:
     """LLM call using consolidation model."""
@@ -127,25 +125,3 @@ async def consolidate_and_tree(user_id: str) -> str:
 
     tree = get_wiki_tree(user_id)
     return f"✅ Notes organized!\n\n{tree}"
-
-async def main():
-    user_ids = storage.get_all_user_ids()
-    if not user_ids:
-        print("No users found.")
-        return
-
-    for user_id in user_ids:
-        log_content = memory.read_log(user_id)
-        if not log_content.strip():
-            print(f"[{user_id}] No logs to process.")
-            continue
-
-        print(f"[{user_id}] Consolidating...")
-        files = await consolidate_user(user_id)
-        if files:
-            print(f"[{user_id}] Created wiki files: {', '.join(files)}")
-        else:
-            print(f"[{user_id}] No wiki files created.")
-
-if __name__ == "__main__":
-    asyncio.run(main())
