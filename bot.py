@@ -3,8 +3,8 @@ import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-from agent import chat
-from reminders import reminder_loop
+from src.agent import chat
+from src.skills import reminders
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
@@ -30,7 +30,7 @@ async def send_reminder(app: Application, user_id: str, reminder: dict):
 async def post_init(app: Application):
     async def reminder_callback(user_id: str, reminder: dict):
         await send_reminder(app, user_id, reminder)
-    asyncio.create_task(reminder_loop(reminder_callback, interval=60))
+    asyncio.create_task(reminders.loop(reminder_callback, interval=60))
 
 def main():
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()

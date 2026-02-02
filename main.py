@@ -1,6 +1,6 @@
 import asyncio
-from agent import chat
-from reminders import reminder_loop
+from src.agent import chat
+from src.skills import reminders
 
 USER_ID = "cli"
 
@@ -28,7 +28,7 @@ async def input_loop():
         print(f"Assistant: {response}\n")
 
 async def main():
-    reminder_task = asyncio.create_task(reminder_loop(on_reminder, interval=60))
+    reminder_task = asyncio.create_task(reminders.loop(on_reminder, interval=60))
 
     try:
         await input_loop()

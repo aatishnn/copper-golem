@@ -1,7 +1,13 @@
-.PHONY: build run bot shell clean
+.PHONY: build run bot shell clean test
 
 build:
 	docker build -t copper-golem .
+
+test: build
+	docker run --rm \
+		--env-file .env \
+		-v $(PWD)/data:/app/data \
+		copper-golem python -c "import asyncio; from src.agent import chat; print(asyncio.run(chat('test', 'Remember I like pizza. Remind me to order dinner in 1 minute.')))"
 
 run: build
 	docker run -it --rm \

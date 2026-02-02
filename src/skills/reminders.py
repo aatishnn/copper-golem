@@ -1,27 +1,22 @@
 import asyncio
 import re
 from datetime import datetime
-from pathlib import Path
 from typing import Callable, Optional
 
-DATA_DIR = Path(__file__).parent / "data"
+from src.storage import get_user_dir, get_all_user_ids
+from src import llm
 
-def get_user_dir(user_id: str) -> Path:
-    user_dir = DATA_DIR / str(user_id)
-    user_dir.mkdir(parents=True, exist_ok=True)
-    return user_dir
-
-def get_reminders_file(user_id: str) -> Path:
+def get_reminders_file(user_id: str):
     return get_user_dir(user_id) / "reminders.md"
 
-def read_reminders(user_id: str) -> str:
+def read(user_id: str) -> str:
     f = get_reminders_file(user_id)
     if not f.exists():
         f.write_text("# Reminders\n\n")
     return f.read_text()
 
-def parse_reminders(user_id: str) -> list[dict]:
-    content = read_reminders(user_id)
+def parse(user_id: str) -> list[dict]:
+    content = read(user_id)
     reminders = []
     pattern = r"- \[([ x])\] (.+?)(?:\s+`due:([^`]+)`)?(?:\s+`created:([^`]+)`)?(?:\s+`completed:([^`]+)`)?\s*$"
 
@@ -37,7 +32,7 @@ def parse_reminders(user_id: str) -> list[dict]:
             })
     return reminders
 
-def add_reminder(user_id: str, text: str, due: Optional[str] = None):
+def add(user_id: str, text: str, due: Optional[str] = None):
     f = get_reminders_file(user_id)
     if not f.exists():
         f.write_text("# Reminders\n\n")
@@ -60,10 +55,10 @@ def mark_complete(user_id: str, text: str):
             break
     f.write_text("\n".join(lines))
 
-def get_due_reminders(user_id: str) -> list[dict]:
+def get_due(user_id: str) -> list[dict]:
     now = datetime.now()
     due_reminders = []
-    for r in parse_reminders(user_id):
+    for r in parse(user_id):
         if r["completed"] or not r["due"]:
             continue
         try:
@@ -73,12 +68,8 @@ def get_due_reminders(user_id: str) -> list[dict]:
             continue
     return due_reminders
 
-def get_all_user_ids() -> list[str]:
-    if not DATA_DIR.exists():
-        return []
-    return [d.name for d in DATA_DIR.iterdir() if d.is_dir()]
-
-async def extract_and_store_reminder(llm_call, user_id: str, user_message: str):
+async def extract_and_store(user_id: str, user_message: str):
+    """LLM-powered skill: Extract reminders/todos from user message."""
     now = datetime.now()
     prompt = f"""Current time: {now.strftime("%Y-%m-%d %H:%M")}
 
@@ -91,7 +82,7 @@ If no reminder/todo, respond with just: NONE
 
 User message: {user_message}"""
 
-    result = await llm_call(prompt)
+    result = await llm.call(prompt)
     if "NONE" in result and "REMINDER:" not in result:
         return None
 
@@ -105,15 +96,15 @@ User message: {user_message}"""
             due_str = due_match.group(1).strip()
             if due_str.upper() != "NONE":
                 due = due_str
-        add_reminder(user_id, text, due)
+        add(user_id, text, due)
         return {"text": text, "due": due}
     return None
 
-async def reminder_loop(callback: Callable[[str, dict], None], interval: int = 60):
-    """Check all users for due reminders."""
+async def loop(callback: Callable[[str, dict], None], interval: int = 60):
+    """Background loop that checks all users for due reminders."""
     while True:
         for user_id in get_all_user_ids():
-            for r in get_due_reminders(user_id):
+            for r in get_due(user_id):
                 await callback(user_id, r)
                 mark_complete(user_id, r["text"])
         await asyncio.sleep(interval)
