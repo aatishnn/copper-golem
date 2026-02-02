@@ -1,5 +1,6 @@
 import os
 from openai import AsyncOpenAI
+from src.common import sanitize_for_prompt
 from src.skills import memory, reminders
 
 client = AsyncOpenAI(
@@ -17,8 +18,8 @@ async def llm_call(prompt: str) -> str:
     return response.choices[0].message.content
 
 async def chat(user_id: str, user_message: str) -> str:
-    user_memory = memory.read(user_id)
-    user_reminders = reminders.read(user_id)
+    user_memory = sanitize_for_prompt(memory.read(user_id))
+    user_reminders = sanitize_for_prompt(reminders.read(user_id))
 
     system = f"""You are a helpful personal assistant with memory. You remember details about the user and help them stay organized.
 

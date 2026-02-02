@@ -2,7 +2,7 @@ import tempfile
 import shutil
 from pathlib import Path
 import pytest
-from src.common import Storage
+from src.common import Storage, sanitize_user_id, sanitize_for_prompt
 
 @pytest.fixture
 def storage():
@@ -32,3 +32,40 @@ def test_get_all_user_ids(storage):
 
     users = storage.get_all_user_ids()
     assert set(users) == {"user1", "user2", "user3"}
+
+# Sanitization tests
+
+def test_sanitize_user_id_valid():
+    assert sanitize_user_id("user123") == "user123"
+    assert sanitize_user_id("user-name_1") == "user-name_1"
+    assert sanitize_user_id("12345") == "12345"
+
+def test_sanitize_user_id_path_traversal():
+    assert sanitize_user_id("../../../etc") == "etc"
+    assert sanitize_user_id("user/../admin") == "useradmin"
+    assert sanitize_user_id("/etc/passwd") == "etcpasswd"
+
+def test_sanitize_user_id_special_chars():
+    assert sanitize_user_id("user@email.com") == "useremailcom"
+    assert sanitize_user_id("user name") == "username"
+
+def test_sanitize_user_id_empty_raises():
+    with pytest.raises(ValueError):
+        sanitize_user_id("...")
+    with pytest.raises(ValueError):
+        sanitize_user_id("///")
+
+def test_sanitize_for_prompt_headers():
+    content = "# Injected Header\n## Another"
+    sanitized = sanitize_for_prompt(content)
+    assert not sanitized.startswith("# ")
+    assert "\\# Injected" in sanitized
+
+def test_sanitize_for_prompt_code_blocks():
+    content = "```python\nmalicious code\n```"
+    sanitized = sanitize_for_prompt(content)
+    assert "```" not in sanitized
+
+def test_sanitize_for_prompt_preserves_normal_text():
+    content = "User likes pizza and coffee"
+    assert sanitize_for_prompt(content) == content
