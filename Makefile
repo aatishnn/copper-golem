@@ -19,7 +19,7 @@ bot: build
 	docker run -it --rm \
 		--env-file .env \
 		-v $(PWD)/data:/app/data \
-		copper-golem python bot.py
+		copper-golem python -m src.bot
 
 shell: build
 	docker run -it --rm \

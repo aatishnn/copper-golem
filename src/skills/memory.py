@@ -1,26 +1,20 @@
 from datetime import datetime
-from src.storage import get_user_dir
-from src import llm
+from src.common import get_user_dir
 
 def get_memory_file(user_id: str):
     return get_user_dir(user_id) / "memory.md"
 
 def read(user_id: str) -> str:
     f = get_memory_file(user_id)
-    if not f.exists():
-        f.write_text("# Memory\n\n")
-    return f.read_text()
+    return f.read_text() if f.exists() else ""
 
 def append(user_id: str, content: str):
     f = get_memory_file(user_id)
-    if not f.exists():
-        f.write_text("# Memory\n\n")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     with open(f, "a") as file:
         file.write(f"\n## {timestamp}\n{content}\n")
 
-async def extract_and_store(user_id: str, user_message: str, assistant_response: str):
-    """LLM-powered skill: Extract facts worth remembering from conversation."""
+async def extract_and_store(llm_call, user_id: str, user_message: str, assistant_response: str):
     prompt = f"""Extract any facts, preferences, or important details worth remembering from this conversation.
 Be concise but preserve important details. If nothing worth remembering, respond with "NOTHING".
 
@@ -29,6 +23,6 @@ Assistant: {assistant_response}
 
 Extracted facts (markdown bullet points, or NOTHING):"""
 
-    result = await llm.call(prompt)
+    result = await llm_call(prompt)
     if result.strip().upper() != "NOTHING":
         append(user_id, result)

@@ -2,23 +2,19 @@ import asyncio
 import re
 from datetime import datetime
 from typing import Callable, Optional
-
-from src.storage import get_user_dir, get_all_user_ids
-from src import llm
+from src.common import get_user_dir, get_all_user_ids
 
 def get_reminders_file(user_id: str):
     return get_user_dir(user_id) / "reminders.md"
 
 def read(user_id: str) -> str:
     f = get_reminders_file(user_id)
-    if not f.exists():
-        f.write_text("# Reminders\n\n")
-    return f.read_text()
+    return f.read_text() if f.exists() else ""
 
 def parse(user_id: str) -> list[dict]:
     content = read(user_id)
     reminders = []
-    pattern = r"- \[([ x])\] (.+?)(?:\s+`due:([^`]+)`)?(?:\s+`created:([^`]+)`)?(?:\s+`completed:([^`]+)`)?\s*$"
+    pattern = r"- \[([ x])\] (.+?)(?:\s+`due:([^`]+)`)?"
 
     for line in content.split("\n"):
         match = re.match(pattern, line.strip())
@@ -27,31 +23,26 @@ def parse(user_id: str) -> list[dict]:
                 "text": match.group(2).strip(),
                 "completed": match.group(1) == "x",
                 "due": match.group(3),
-                "created": match.group(4),
-                "raw": line
             })
     return reminders
 
 def add(user_id: str, text: str, due: Optional[str] = None):
     f = get_reminders_file(user_id)
-    if not f.exists():
-        f.write_text("# Reminders\n\n")
-    created = datetime.now().strftime("%Y-%m-%dT%H:%M")
     line = f"- [ ] {text}"
     if due:
         line += f" `due:{due}`"
-    line += f" `created:{created}`"
     with open(f, "a") as file:
         file.write(f"{line}\n")
 
 def mark_complete(user_id: str, text: str):
     f = get_reminders_file(user_id)
+    if not f.exists():
+        return
     content = f.read_text()
-    completed_time = datetime.now().strftime("%Y-%m-%dT%H:%M")
     lines = content.split("\n")
     for i, line in enumerate(lines):
         if text in line and "- [ ]" in line:
-            lines[i] = line.replace("- [ ]", "- [x]") + f" `completed:{completed_time}`"
+            lines[i] = line.replace("- [ ]", "- [x]")
             break
     f.write_text("\n".join(lines))
 
@@ -68,8 +59,7 @@ def get_due(user_id: str) -> list[dict]:
             continue
     return due_reminders
 
-async def extract_and_store(user_id: str, user_message: str):
-    """LLM-powered skill: Extract reminders/todos from user message."""
+async def extract_and_store(llm_call, user_id: str, user_message: str):
     now = datetime.now()
     prompt = f"""Current time: {now.strftime("%Y-%m-%d %H:%M")}
 
@@ -82,7 +72,7 @@ If no reminder/todo, respond with just: NONE
 
 User message: {user_message}"""
 
-    result = await llm.call(prompt)
+    result = await llm_call(prompt)
     if "NONE" in result and "REMINDER:" not in result:
         return None
 
@@ -101,7 +91,6 @@ User message: {user_message}"""
     return None
 
 async def loop(callback: Callable[[str, dict], None], interval: int = 60):
-    """Background loop that checks all users for due reminders."""
     while True:
         for user_id in get_all_user_ids():
             for r in get_due(user_id):
