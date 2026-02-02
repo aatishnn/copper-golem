@@ -2,19 +2,20 @@ import asyncio
 import re
 from datetime import datetime
 from typing import Callable, Optional
-from src.common import get_user_dir, get_all_user_ids
+from src.common import Storage, storage as default_storage
 
-def get_reminders_file(user_id: str):
-    return get_user_dir(user_id) / "reminders.md"
+def get_reminders_file(user_id: str, storage: Storage = None):
+    s = storage or default_storage
+    return s.get_user_dir(user_id) / "reminders.md"
 
-def read(user_id: str) -> str:
-    f = get_reminders_file(user_id)
+def read(user_id: str, storage: Storage = None) -> str:
+    f = get_reminders_file(user_id, storage)
     return f.read_text() if f.exists() else ""
 
-def parse(user_id: str) -> list[dict]:
-    content = read(user_id)
+def parse(user_id: str, storage: Storage = None) -> list[dict]:
+    content = read(user_id, storage)
     reminders = []
-    pattern = r"- \[([ x])\] (.+?)(?:\s+`due:([^`]+)`)?"
+    pattern = r"- \[([ x])\] ([^`\n]+?)(?:\s+`due:([^`]+)`)?\s*$"
 
     for line in content.split("\n"):
         match = re.match(pattern, line.strip())
@@ -26,16 +27,16 @@ def parse(user_id: str) -> list[dict]:
             })
     return reminders
 
-def add(user_id: str, text: str, due: Optional[str] = None):
-    f = get_reminders_file(user_id)
+def add(user_id: str, text: str, due: Optional[str] = None, storage: Storage = None):
+    f = get_reminders_file(user_id, storage)
     line = f"- [ ] {text}"
     if due:
         line += f" `due:{due}`"
     with open(f, "a") as file:
         file.write(f"{line}\n")
 
-def mark_complete(user_id: str, text: str):
-    f = get_reminders_file(user_id)
+def mark_complete(user_id: str, text: str, storage: Storage = None):
+    f = get_reminders_file(user_id, storage)
     if not f.exists():
         return
     content = f.read_text()
@@ -46,10 +47,10 @@ def mark_complete(user_id: str, text: str):
             break
     f.write_text("\n".join(lines))
 
-def get_due(user_id: str) -> list[dict]:
+def get_due(user_id: str, storage: Storage = None) -> list[dict]:
     now = datetime.now()
     due_reminders = []
-    for r in parse(user_id):
+    for r in parse(user_id, storage):
         if r["completed"] or not r["due"]:
             continue
         try:
@@ -59,7 +60,7 @@ def get_due(user_id: str) -> list[dict]:
             continue
     return due_reminders
 
-async def extract_and_store(llm_call, user_id: str, user_message: str):
+async def extract_and_store(llm_call, user_id: str, user_message: str, storage: Storage = None):
     now = datetime.now()
     prompt = f"""Current time: {now.strftime("%Y-%m-%d %H:%M")}
 
@@ -86,14 +87,15 @@ User message: {user_message}"""
             due_str = due_match.group(1).strip()
             if due_str.upper() != "NONE":
                 due = due_str
-        add(user_id, text, due)
+        add(user_id, text, due, storage)
         return {"text": text, "due": due}
     return None
 
-async def loop(callback: Callable[[str, dict], None], interval: int = 60):
+async def loop(callback: Callable[[str, dict], None], interval: int = 60, storage: Storage = None):
+    s = storage or default_storage
     while True:
-        for user_id in get_all_user_ids():
-            for r in get_due(user_id):
+        for user_id in s.get_all_user_ids():
+            for r in get_due(user_id, storage):
                 await callback(user_id, r)
-                mark_complete(user_id, r["text"])
+                mark_complete(user_id, r["text"], storage)
         await asyncio.sleep(interval)
