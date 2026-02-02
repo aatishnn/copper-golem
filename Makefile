@@ -1,4 +1,4 @@
-.PHONY: build run bot shell clean test unit-test
+.PHONY: build run bot shell clean test unit-test consolidate
 
 build:
 	docker build -t copper-golem .
@@ -29,6 +29,12 @@ shell: build
 		--env-file .env \
 		-v $(PWD)/data:/app/data \
 		copper-golem /bin/bash
+
+consolidate: build
+	docker run --rm \
+		--env-file .env \
+		-v $(PWD)/data:/app/data \
+		copper-golem python -m src.consolidate
 
 clean:
 	docker rmi copper-golem 2>/dev/null || true

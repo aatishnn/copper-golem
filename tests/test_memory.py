@@ -49,5 +49,45 @@ async def test_extract_nothing(storage):
     mock_llm = AsyncMock(return_value="NOTHING")
     await memory.extract_and_store(mock_llm, "user1", "hello", "hi there", storage)
 
+    # Memory should be empty but log should have the conversation
     result = memory.read("user1", storage)
     assert result == ""
+    log = memory.read_log("user1", storage)
+    assert "hello" in log
+    assert "hi there" in log
+
+def test_log_append_and_read(storage):
+    from src.skills import memory
+    memory.append_log("user1", "What's the weather?", "It's sunny!", storage)
+    log = memory.read_log("user1", storage)
+    assert "What's the weather?" in log
+    assert "It's sunny!" in log
+
+def test_log_clear(storage):
+    from src.skills import memory
+    memory.append_log("user1", "test", "response", storage)
+    assert memory.read_log("user1", storage) != ""
+    memory.clear_log("user1", storage)
+    assert memory.read_log("user1", storage) == ""
+
+@pytest.mark.asyncio
+async def test_consolidate(storage):
+    from src.skills import memory
+
+    # Add some log entries
+    memory.append_log("user1", "I like pizza", "Noted!", storage)
+    memory.append_log("user1", "My name is Alice", "Nice to meet you Alice!", storage)
+
+    # Mock LLM returns organized memory
+    mock_llm = AsyncMock(return_value="## Preferences\n- Likes pizza\n\n## Personal\n- Name: Alice")
+    result = await memory.consolidate(mock_llm, "user1", storage)
+
+    # Memory should be updated
+    assert "Preferences" in result
+    assert "Alice" in result
+
+    # Log should be cleared
+    assert memory.read_log("user1", storage) == ""
+
+    # Memory file should have the consolidated content
+    assert "Preferences" in memory.read("user1", storage)
